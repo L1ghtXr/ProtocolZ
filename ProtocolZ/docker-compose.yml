@@ -1,0 +1,8 @@
+# UNTESTED: authored where Docker was unavailable. Runs the unit tests in a clean container.
+services:
+  test:
+    image: python:3.12-slim
+    working_dir: /src
+    volumes: ["./:/src"]
+    environment: { PYTHONPATH: integrations/nftables }
+    command: python -m unittest discover -s tests -v
