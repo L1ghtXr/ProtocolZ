@@ -1,18 +1,10 @@
-"""Render a FirewallPolicy to an nftables ruleset.
-
-The output starts with `table X` / `delete table X` / `table X {...}`: the
-standard idiom for an atomic, idempotent replace of exactly one table. Other
-tables (e.g. Docker's) are never touched, and only the input hook is managed.
-
-NOTE: syntax is checked on the target host with `nft -c` (dry-run). It could not
-be validated against a real nft binary in the development sandbox.
-"""
+"""Render a FirewallPolicy to an nftables ruleset."""
 from __future__ import annotations
 
 from .policy import FirewallPolicy
 
 TABLE = "protocolz"
-MGMT_RATE = "30/second burst 60 packets"  # excess new SSH attempts fall through to default drop
+MGMT_RATE = "30/second burst 60 packets"
 
 
 def _src_matches(nets) -> list:
@@ -30,6 +22,11 @@ def _rule(*parts: str) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _set_name(name: str, family: int) -> str:
+    safe = name.replace("-", "_")
+    return f"pz_{safe}_v{family}"
+
+
 def render(policy: FirewallPolicy) -> str:
     r = []
     add = r.append
@@ -37,6 +34,16 @@ def render(policy: FirewallPolicy) -> str:
     add(f"table inet {TABLE}")
     add(f"delete table inet {TABLE}")
     add(f"table inet {TABLE} {{")
+
+    # Dynamic sets are emitted before the chain that references them.
+    for svc in policy.services:
+        if svc.per_source_rate is None:
+            continue
+        families = {n.version for n in svc.allow} if svc.allow else {4, 6}
+        for family in sorted(families):
+            addr_type = "ipv4_addr" if family == 4 else "ipv6_addr"
+            add(f"    set {_set_name(svc.name, family)} {{ type {addr_type}; flags dynamic; }}")
+
     add("    chain input {")
     add("        type filter hook input priority 0; policy drop;")
     add("        ct state invalid counter drop")
@@ -47,19 +54,42 @@ def render(policy: FirewallPolicy) -> str:
     if policy.allow_icmp:
         add("        meta l4proto icmp limit rate 20/second burst 50 packets accept")
 
-    add('        # management (SSH)')
+    add("        # management (SSH)")
     for m in _src_matches(policy.management):
-        add("        " + _rule(m, f"tcp dport {policy.ssh_port}", "ct state new", f"limit rate {MGMT_RATE}",
-                               'accept comment "mgmt-ssh"'))
+        add("        " + _rule(
+            m, f"tcp dport {policy.ssh_port}", "ct state new",
+            f"limit rate {MGMT_RATE}", 'accept comment "mgmt-ssh"'
+        ))
 
     for svc in policy.services:
         add(f"        # service {svc.name}")
-        for m in _src_matches(svc.allow):
+        matches = _src_matches(svc.allow)
+        if svc.per_source_rate is not None:
+            families = {n.version for n in svc.allow} if svc.allow else {4, 6}
+            burst = svc.per_source_burst or svc.per_source_rate * 2
+            for family in sorted(families):
+                addr_match = "ip saddr" if family == 4 else "ip6 saddr"
+                set_name = _set_name(svc.name, family)
+                # Keep each rule family-specific so IPv4 never references an IPv6 set.
+                source_filter = next(
+                    (m for m in matches if m.startswith("ip saddr { " if family == 4
+                                                       else "ip6 saddr { ")),
+                    ""
+                )
+                add("        " + _rule(
+                    source_filter, f"{svc.proto} dport {svc.port}", "ct state new",
+                    f"add @{set_name} {{ {addr_match} limit rate over "
+                    f"{svc.per_source_rate}/second burst {burst} packets }}",
+                    "counter drop", f'comment "ps-{svc.name}"'
+                ))
+        for m in matches:
             match = _rule(m, f"{svc.proto} dport {svc.port}")
             if svc.rate is not None:
-                add("        " + _rule(match, "ct state new",
-                                       f"limit rate over {svc.rate}/second burst {svc.effective_burst} packets",
-                                       f'counter drop comment "rl-{svc.name}"'))
+                add("        " + _rule(
+                    match, "ct state new",
+                    f"limit rate over {svc.rate}/second burst {svc.effective_burst} packets",
+                    f'counter drop comment "rl-{svc.name}"'
+                ))
             add("        " + _rule(match, f'accept comment "svc-{svc.name}"'))
 
     add('        counter drop comment "default-deny"')

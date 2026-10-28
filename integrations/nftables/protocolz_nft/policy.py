@@ -60,6 +60,8 @@ class ServicePolicy:
     allow: tuple = ()  # ip_network objects; empty = any source
     rate: int | None = None  # max new flows/second per rule (see docs: not per-source)
     burst: int | None = None
+    per_source_rate: int | None = None
+    per_source_burst: int | None = None
 
     def __post_init__(self):
         if not isinstance(self.name, str) or not NAME_RE.match(self.name):
@@ -73,6 +75,14 @@ class ServicePolicy:
             _positive_int(self.burst, f"service {self.name} burst")
             if self.rate is None:
                 raise PolicyError(f"service {self.name}: burst requires new_conn_rate")
+        if self.per_source_rate is not None:
+            _positive_int(self.per_source_rate, f"service {self.name} per_source_rate")
+        if self.per_source_burst is not None:
+            _positive_int(self.per_source_burst, f"service {self.name} per_source_burst")
+            if self.per_source_rate is None:
+                raise PolicyError(
+                    f"service {self.name}: per_source_burst requires per_source_rate"
+                )
 
     @property
     def effective_burst(self) -> int | None:
@@ -84,7 +94,12 @@ class ServicePolicy:
     def from_dict(cls, data: Any) -> "ServicePolicy":
         if not isinstance(data, dict):
             raise PolicyError("each service must be a JSON object")
-        _reject_unknown(data, {"name", "proto", "port", "allow_cidrs", "new_conn_rate", "burst"}, "service")
+        _reject_unknown(
+            data,
+            {"name", "proto", "port", "allow_cidrs", "new_conn_rate", "burst",
+             "per_source_rate", "per_source_burst"},
+            "service",
+        )
         for key in ("name", "proto", "port"):
             if key not in data:
                 raise PolicyError(f"service: missing required field {key!r}")
@@ -95,6 +110,8 @@ class ServicePolicy:
             allow=_networks(data.get("allow_cidrs", []), f"service {data['name']} allow_cidrs"),
             rate=data.get("new_conn_rate"),
             burst=data.get("burst"),
+            per_source_rate=data.get("per_source_rate"),
+            per_source_burst=data.get("per_source_burst"),
         )
 
 
