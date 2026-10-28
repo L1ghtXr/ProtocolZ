@@ -1,0 +1,6 @@
+# No Python dependencies exist today; this keeps the workflow actions themselves patched.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

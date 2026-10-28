@@ -1,0 +1,109 @@
+{
+  "environment": {
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logical_cpus": 1,
+    "python": "3.12.3",
+    "kernel": "6.18.44-fc-v165",
+    "date_utc": "2026-10-27",
+    "commit": "447eb09"
+  },
+  "runs": 3,
+  "micro": {
+    "ratelimiter_decisions_per_sec": [
+      1193315.5569888875,
+      1310713.2136288872,
+      1370297.8799208028
+    ],
+    "detector_observations_per_sec": [
+      216751.8350735957,
+      219763.86886536336,
+      230352.03718237896
+    ],
+    "java_handshake_parses_per_sec": [
+      207411.6641707609,
+      225063.51100977315,
+      241629.17086335993
+    ],
+    "bedrock_classifications_per_sec": [
+      4848848.933367446,
+      5710475.79360359,
+      6641075.209559506
+    ],
+    "nft_renders_per_sec_20_services": [
+      3560.2009014725963,
+      4056.5546568719737,
+      4622.11522580078
+    ]
+  },
+  "proxy": {
+    "proxy.direct_to_origin.rps": [
+      4631.338493474232,
+      5415.834409374559,
+      6237.872172975633
+    ],
+    "proxy.direct_to_origin.p50_ms": [
+      3.1513929999960055,
+      3.287230000012187,
+      4.04111099999227
+    ],
+    "proxy.direct_to_origin.p99_ms": [
+      3.999845999999252,
+      7.689817999960269,
+      9.72259299999223
+    ],
+    "proxy.via_protocolz_proxy.rps": [
+      2239.483159774218,
+      2276.027813078058,
+      2314.6268121094927
+    ],
+    "proxy.via_protocolz_proxy.p50_ms": [
+      8.347572999980457,
+      8.40846899995995,
+      8.558613000047899
+    ],
+    "proxy.via_protocolz_proxy.p99_ms": [
+      13.014163999969242,
+      15.135750000013104,
+      16.10501300001488
+    ],
+    "proxy.proxy_rejecting_with_429.rps": [
+      5032.262083832347,
+      5424.511041536353,
+      5439.067450854691
+    ],
+    "proxy.proxy_rejecting_with_429.p50_ms": [
+      3.513107999992826,
+      3.5362469999995483,
+      3.9021150000166926
+    ],
+    "proxy.proxy_rejecting_with_429.p99_ms": [
+      5.289325999967787,
+      5.557441999997081,
+      8.209182000030069
+    ]
+  },
+  "proxy_status_codes_run1": {
+    "direct_to_origin": {
+      "200": 1500
+    },
+    "via_protocolz_proxy": {
+      "200": 1500
+    },
+    "proxy_rejecting_with_429": {
+      "429": 1499,
+      "200": 1
+    }
+  },
+  "detection_synthetic": {
+    "stationary_gaussian_samples": 200000,
+    "false_suspect_samples": 0,
+    "false_attack_samples": 0,
+    "samples_to_attack_verdict_by_spike": {
+      "1.5x": "not detected in 30 samples",
+      "2x": 3,
+      "3x": 3,
+      "5x": 3,
+      "8x": 3
+    }
+  }
+}
